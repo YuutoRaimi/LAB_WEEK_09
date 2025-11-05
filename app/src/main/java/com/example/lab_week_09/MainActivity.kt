@@ -26,6 +26,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import com.example.lab_week_09.ui.theme.OnBackgroundItemText
+import com.example.lab_week_09.ui.theme.OnBackgroundTitleText
+import com.example.lab_week_09.ui.theme.PrimaryTextButton
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +98,9 @@ fun HomeContent(
                     .fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                OnBackgroundTitleText(text = stringResource(
+                    id = R.string.enter_item)
+                )
                 Text(
                     text = stringResource(
                         id = R.string.enter_item
@@ -110,6 +116,12 @@ fun HomeContent(
                         onInputValueChange(it)
                     }
                 )
+                //Here, we call the PrimaryTextButton UI Element
+                PrimaryTextButton(text = stringResource(
+                    id = R.string.button_click)
+                ) {
+                    onButtonClick()
+                }
                 Button(onClick = {
                     // Panggil lambda yang sudah kita kirim dari Home
                     onButtonClick()
@@ -122,7 +134,6 @@ fun HomeContent(
                 }
             }
         }
-
         items(listData) { item ->
             Column(
                 modifier = Modifier
@@ -130,6 +141,7 @@ fun HomeContent(
                     .fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                OnBackgroundItemText(text = item.name)
                 Text(text = item.name)
             }
         }
