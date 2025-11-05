@@ -4,12 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -21,14 +21,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example.lab_week_09.ui.theme.OnBackgroundItemText
 import com.example.lab_week_09.ui.theme.OnBackgroundTitleText
 import com.example.lab_week_09.ui.theme.PrimaryTextButton
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,7 +44,11 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Home()
+                    val navController = rememberNavController()
+                    // Panggil App (yang sekarang sudah di top-level)
+                    App(
+                        navController = navController
+                    )
                 }
             }
         }
@@ -50,8 +59,9 @@ data class Student(
     var name: String
 )
 
+// PERBAIKAN: Fungsi Home sekarang di top-level
 @Composable
-fun Home() {
+fun Home(navigateFromHomeToResult: (String) -> Unit) {
     val listData = remember {
         mutableStateListOf(
             Student("Tanu"),
@@ -60,37 +70,38 @@ fun Home() {
         )
     }
 
-    // PERBAIKAN: 'var' diubah menjadi 'val' (sesuai warning)
     val inputField = remember { mutableStateOf(Student("")) }
 
-    // PERBAIKAN: Panggil HomeContent di sini
+    // PERBAIKAN: Memperbaiki cara memanggil HomeContent
     HomeContent(
         listData = listData,
-        inputField = inputField.value, // Berikan .value (objek Student)
+        inputField = inputField.value,
         onInputValueChange = { newName ->
-            // Saat nilai berubah, update state 'inputField'
             inputField.value = inputField.value.copy(name = newName)
         },
         onButtonClick = {
-            // Saat tombol diklik, tambahkan state ke list
+            // Logika untuk menambah item
             listData.add(inputField.value)
             // Reset input field
             inputField.value = Student("")
+        },
+        navigateFromHomeToResult = {
+            // Logika untuk navigasi
+            navigateFromHomeToResult(listData.toList().toString())
         }
     )
 }
 
-// PERBAIKAN: HomeContent dipindah KELUAR dari Home
+// PERBAIKAN: Fungsi HomeContent sekarang di top-level
 @Composable
 fun HomeContent(
     listData: SnapshotStateList<Student>,
     inputField: Student,
     onInputValueChange: (String) -> Unit,
-    onButtonClick: () -> Unit
+    onButtonClick: () -> Unit,
+    navigateFromHomeToResult: () -> Unit // Parameter ini sebelumnya salah passing
 ) {
-    //Here, we use LazyColumn to display a list of items lazily
     LazyColumn {
-        //Here, we use item to display an item inside the LazyColumn
         item {
             Column(
                 modifier = Modifier
@@ -98,39 +109,38 @@ fun HomeContent(
                     .fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                OnBackgroundTitleText(text = stringResource(
-                    id = R.string.enter_item)
-                )
-                Text(
+                OnBackgroundTitleText(
                     text = stringResource(
                         id = R.string.enter_item
                     )
                 )
                 TextField(
-                    value = inputField.name, // Gunakan nama dari objek Student
+                    value = inputField.name,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text
                     ),
                     onValueChange = {
-                        // Panggil lambda yang sudah kita kirim dari Home
                         onInputValueChange(it)
                     }
                 )
-                //Here, we call the PrimaryTextButton UI Element
-                PrimaryTextButton(text = stringResource(
-                    id = R.string.button_click)
-                ) {
-                    onButtonClick()
-                }
-                Button(onClick = {
-                    // Panggil lambda yang sudah kita kirim dari Home
-                    onButtonClick()
-                }) {
-                    Text(
+                // PERBAIKAN: Tambahkan import untuk Row
+                Row {
+                    PrimaryTextButton(
                         text = stringResource(
-                            id = R.string.button_click
+                            id =
+                                R.string.button_click
                         )
-                    )
+                    ) {
+                        onButtonClick() // Panggil lambda onButtonClick
+                    }
+                    PrimaryTextButton(
+                        text = stringResource(
+                            id =
+                                R.string.button_navigate
+                        )
+                    ) {
+                        navigateFromHomeToResult() // Panggil lambda navigate
+                    }
                 }
             }
         }
@@ -142,18 +152,57 @@ fun HomeContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 OnBackgroundItemText(text = item.name)
-                Text(text = item.name)
             }
         }
     }
 }
 
+// PERBAIKAN: Fungsi App sekarang di top-level
+@Composable
+fun App(navController: NavHostController) {
+    NavHost(
+        navController = navController,
+        startDestination = "home"
+    ) {
+        composable("home") {
+            Home { listDataString ->
+                navController.navigate(
+                    "resultContent/?listData=$listDataString"
+                )
+            }
+        }
+        composable(
+            "resultContent/?listData={listData}",
+            arguments = listOf(navArgument("listData") {
+                type = NavType.StringType
+            })
+        ) { backStackEntry ->
+            // PERBAIKAN: Ambil argumen dan panggil ResultContent
+            val listDataString = backStackEntry.arguments?.getString("listData") ?: ""
+            ResultContent(listData = listDataString)
+        }
+    }
+}
 
+// PERBAIKAN: Fungsi ResultContent sekarang di top-level
+@Composable
+fun ResultContent(listData: String) {
+    Column(
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        OnBackgroundItemText(text = listData)
+    }
+}
+
+// PERBAIKAN: Fungsi PreviewHome sekarang di top-level
 @Preview(showBackground = true)
 @Composable
 fun PreviewHome() {
-    // PERBAIKAN: Panggil Home() tanpa argumen
-    LAB_WEEK_09Theme { // Tambahkan Theme agar preview-nya sesuai
-        Home()
+    LAB_WEEK_09Theme {
+        // PERBAIKAN: Berikan lambda kosong untuk parameter navigasi
+        Home(navigateFromHomeToResult = {})
     }
 }
