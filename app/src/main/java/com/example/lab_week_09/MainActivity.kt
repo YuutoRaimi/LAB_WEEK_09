@@ -34,6 +34,17 @@ import com.example.lab_week_09.ui.theme.PrimaryTextButton
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.squareup.moshi.JsonClass
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
+private val moshi: Moshi = Moshi.Builder()
+    .build()
+private val listStudentType = Types.newParameterizedType(List::class.java, Student::class.java)
+private val listStudentAdapter = moshi.adapter<List<Student>>(listStudentType)
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,7 +56,6 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    // Panggil App (yang sekarang sudah di top-level)
                     App(
                         navController = navController
                     )
@@ -54,12 +64,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
+@JsonClass(generateAdapter = true)
 data class Student(
     var name: String
 )
 
-// PERBAIKAN: Fungsi Home sekarang di top-level
 @Composable
 fun Home(navigateFromHomeToResult: (String) -> Unit) {
     val listData = remember {
@@ -72,7 +81,6 @@ fun Home(navigateFromHomeToResult: (String) -> Unit) {
 
     val inputField = remember { mutableStateOf(Student("")) }
 
-    // PERBAIKAN: Memperbaiki cara memanggil HomeContent
     HomeContent(
         listData = listData,
         inputField = inputField.value,
@@ -80,26 +88,28 @@ fun Home(navigateFromHomeToResult: (String) -> Unit) {
             inputField.value = inputField.value.copy(name = newName)
         },
         onButtonClick = {
-            // Logika untuk menambah item
-            listData.add(inputField.value)
-            // Reset input field
-            inputField.value = Student("")
+            if (inputField.value.name.isNotBlank()) {
+                listData.add(inputField.value)
+                inputField.value = Student("")
+            }
         },
         navigateFromHomeToResult = {
-            // Logika untuk navigasi
-            navigateFromHomeToResult(listData.toList().toString())
+            val jsonString = listStudentAdapter.toJson(listData.toList())
+
+            val encodedJsonString = URLEncoder.encode(jsonString, StandardCharsets.UTF_8.name())
+
+            navigateFromHomeToResult(encodedJsonString)
         }
     )
 }
 
-// PERBAIKAN: Fungsi HomeContent sekarang di top-level
 @Composable
 fun HomeContent(
     listData: SnapshotStateList<Student>,
     inputField: Student,
     onInputValueChange: (String) -> Unit,
     onButtonClick: () -> Unit,
-    navigateFromHomeToResult: () -> Unit // Parameter ini sebelumnya salah passing
+    navigateFromHomeToResult: () -> Unit
 ) {
     LazyColumn {
         item {
@@ -123,7 +133,6 @@ fun HomeContent(
                         onInputValueChange(it)
                     }
                 )
-                // PERBAIKAN: Tambahkan import untuk Row
                 Row {
                     PrimaryTextButton(
                         text = stringResource(
@@ -131,7 +140,7 @@ fun HomeContent(
                                 R.string.button_click
                         )
                     ) {
-                        onButtonClick() // Panggil lambda onButtonClick
+                        onButtonClick()
                     }
                     PrimaryTextButton(
                         text = stringResource(
@@ -139,7 +148,7 @@ fun HomeContent(
                                 R.string.button_navigate
                         )
                     ) {
-                        navigateFromHomeToResult() // Panggil lambda navigate
+                        navigateFromHomeToResult()
                     }
                 }
             }
@@ -157,7 +166,6 @@ fun HomeContent(
     }
 }
 
-// PERBAIKAN: Fungsi App sekarang di top-level
 @Composable
 fun App(navController: NavHostController) {
     NavHost(
@@ -177,32 +185,42 @@ fun App(navController: NavHostController) {
                 type = NavType.StringType
             })
         ) { backStackEntry ->
-            // PERBAIKAN: Ambil argumen dan panggil ResultContent
-            val listDataString = backStackEntry.arguments?.getString("listData") ?: ""
-            ResultContent(listData = listDataString)
+            val listDataJson = backStackEntry.arguments?.getString("listData") ?: "[]"
+
+            ResultContent(listDataJson = listDataJson)
         }
     }
 }
 
-// PERBAIKAN: Fungsi ResultContent sekarang di top-level
 @Composable
-fun ResultContent(listData: String) {
-    Column(
+fun ResultContent(listDataJson: String) {
+
+    val studentList = try {
+        listStudentAdapter.fromJson(listDataJson) ?: emptyList()
+    } catch (e: Exception) {
+        emptyList<Student>()
+    }
+
+    LazyColumn(
         modifier = Modifier
-            .padding(vertical = 4.dp)
-            .fillMaxSize(),
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        OnBackgroundItemText(text = listData)
+        item {
+            OnBackgroundTitleText(text = "Hasil List")
+        }
+
+        items(studentList) { student ->
+            OnBackgroundItemText(text = student.name)
+        }
     }
 }
 
-// PERBAIKAN: Fungsi PreviewHome sekarang di top-level
 @Preview(showBackground = true)
 @Composable
 fun PreviewHome() {
     LAB_WEEK_09Theme {
-        // PERBAIKAN: Berikan lambda kosong untuk parameter navigasi
         Home(navigateFromHomeToResult = {})
     }
 }

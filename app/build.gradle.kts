@@ -1,7 +1,10 @@
+import org.gradle.kotlin.dsl.implementation
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("kotlin-kapt")
 }
 
 android {
@@ -42,6 +45,8 @@ android {
 }
 
 dependencies {
+    implementation("com.squareup.moshi:moshi:1.15.1")
+    kapt("com.squareup.moshi:moshi-kotlin-codegen:1.15.1")
     implementation("androidx.navigation:navigation-compose:2.7.4")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
